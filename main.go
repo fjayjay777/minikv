@@ -7,6 +7,8 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+
+	"godb/internal/index"
 )
 
 const (
@@ -52,7 +54,7 @@ func startConsole() error {
 
 	var coreErr error
 
-	sst := NewSST(defaultMetaFilename)
+	sst := index.NewSST(defaultMetaFilename)
 
 	for {
 

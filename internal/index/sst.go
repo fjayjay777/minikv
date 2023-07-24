@@ -1,4 +1,4 @@
-package main
+package index
 
 import (
 	"encoding/json"
@@ -49,7 +49,7 @@ func (s *sst) WriteKeyIndex(key string, valLen int) error {
 }
 
 func (s *sst) ReadKeyIndex(key string) (string, error) {
-	
+
 	return "", nil
 }
 
