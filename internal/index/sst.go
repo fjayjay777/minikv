@@ -20,7 +20,7 @@ func NewSST(storePath string) *sst {
 	}
 }
 
-func (s *sst) WriteKeyIndex(key string, valLen int) error {
+func (s *sst) WriteKeyIndex(key string) error {
 	lastOffset, err := s.getLastOffset()
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func (s *sst) WriteKeyIndex(key string, valLen int) error {
 
 	indexMeta := &indexMeta{
 		Key:    key,
-		Offset: lastOffset + valLen,
+		Offset: lastOffset + 1,
 	}
 	jsonData, err := json.MarshalIndent(indexMeta, "", "    ")
 	if err != nil {
@@ -48,9 +48,19 @@ func (s *sst) WriteKeyIndex(key string, valLen int) error {
 	return nil
 }
 
-func (s *sst) ReadKeyIndex(key string) (string, error) {
+func (s *sst) ReadKeyIndex(key string) (int, error) {
+	allIndexes, err := s.readIndexMeta()
+	if err != nil {
+		return -1, err
+	}
 
-	return "", nil
+	for _, index := range allIndexes {
+		if index.Key == key {
+			return index.Offset, nil
+		}
+	}
+
+	return -1, nil
 }
 
 func (s *sst) getLastOffset() (int, error) {
