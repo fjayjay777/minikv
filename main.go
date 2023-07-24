@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/signal"
@@ -53,6 +52,8 @@ func startConsole() error {
 
 	var coreErr error
 
+	sst := NewSST(defaultMetaFilename)
+
 	for {
 
 		if !scanner.Scan() {
@@ -80,7 +81,7 @@ func startConsole() error {
 				coreErr = err
 			}
 			fmt.Printf("wrote %d byte data\n", n)
-			err = makeMeta(key, len(value))
+			err = sst.WriteKeyIndex(key, len(value))
 			if err != nil {
 				coreErr = err
 			}
@@ -155,72 +156,6 @@ func readKey(key string) (string, int, error) {
 	}
 
 	return foundVal, foundCount, nil
-}
-
-type indexMeta struct {
-	Key    string `json:"key"`
-	Offset int    `json:"offset"`
-}
-
-func makeMeta(key string, valLen int) error {
-	lastOffset, err := getLastOffset()
-	if err != nil {
-		return err
-	}
-
-	indexMeta := &indexMeta{
-		Key:    key,
-		Offset: lastOffset + valLen,
-	}
-	jsonData, err := json.MarshalIndent(indexMeta, "", "    ")
-	if err != nil {
-		return err
-	}
-
-	file, err := os.OpenFile(defaultMetaFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
-	if err != nil {
-		return err
-	}
-	_, err = file.Write(append(jsonData, []byte("\n")...))
-	if err != nil {
-		file.Close()
-		return err
-	}
-
-	return nil
-}
-
-func getLastOffset() (int, error) {
-	indexMetaList, err := readIndexMeta()
-	if err != nil {
-		return -1, err
-	}
-	if len(indexMetaList) == 0 {
-		return 0, nil
-	}
-
-	lastIndexMeta := indexMetaList[len(indexMetaList)-1]
-	return lastIndexMeta.Offset, nil
-}
-
-func readIndexMeta() ([]indexMeta, error) {
-	file, err := os.Open(defaultMetaFilename)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
-
-	var indexMetaList []indexMeta
-
-	decoder := json.NewDecoder(file)
-	for decoder.More() {
-		var indexMeta indexMeta
-		if err := decoder.Decode(&indexMeta); err != nil {
-			return nil, err
-		}
-		indexMetaList = append(indexMetaList, indexMeta)
-	}
-	return indexMetaList, nil
 }
 
 func fileExists(filename string) bool {
