@@ -13,6 +13,9 @@ import (
 const (
 	defaultFilename     = "./store"
 	defaultMetaFilename = "./store.meta"
+
+	read  function = "read"
+	write function = "write"
 )
 
 func init() {
@@ -23,11 +26,6 @@ func init() {
 }
 
 type function string
-
-const (
-	read  function = "read"
-	write function = "write"
-)
 
 func main() {
 	go func() {
@@ -82,6 +80,10 @@ func startConsole() error {
 				coreErr = err
 			}
 			fmt.Printf("wrote %d byte data\n", n)
+			err = makeMeta(key, len(value))
+			if err != nil {
+				coreErr = err
+			}
 		case string(read):
 			val, cnt, err := readKey(key)
 			if err != nil {
@@ -156,8 +158,8 @@ func readKey(key string) (string, int, error) {
 }
 
 type indexMeta struct {
-	key    string
-	offset int
+	Key    string `json:"key"`
+	Offset int    `json:"offset"`
 }
 
 func makeMeta(key string, valLen int) error {
@@ -167,20 +169,21 @@ func makeMeta(key string, valLen int) error {
 	}
 
 	indexMeta := &indexMeta{
-		key:    key,
-		offset: lastOffset + valLen,
+		Key:    key,
+		Offset: lastOffset + valLen,
 	}
 	jsonData, err := json.MarshalIndent(indexMeta, "", "    ")
 	if err != nil {
 		return err
 	}
 
-	file, err := os.Open(defaultMetaFilename)
+	file, err := os.OpenFile(defaultMetaFilename, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
 		return err
 	}
-	_, err = file.Write(jsonData)
+	_, err = file.Write(append(jsonData, []byte("\n")...))
 	if err != nil {
+		file.Close()
 		return err
 	}
 
@@ -197,7 +200,7 @@ func getLastOffset() (int, error) {
 	}
 
 	lastIndexMeta := indexMetaList[len(indexMetaList)-1]
-	return lastIndexMeta.offset, nil
+	return lastIndexMeta.Offset, nil
 }
 
 func readIndexMeta() ([]indexMeta, error) {
@@ -207,21 +210,15 @@ func readIndexMeta() ([]indexMeta, error) {
 	}
 	defer file.Close()
 
-	scanner := bufio.NewScanner(file)
-
 	var indexMetaList []indexMeta
-	for scanner.Scan() {
-		line := scanner.Bytes()
+
+	decoder := json.NewDecoder(file)
+	for decoder.More() {
 		var indexMeta indexMeta
-		err = json.Unmarshal(line, &indexMeta)
-		if err != nil {
+		if err := decoder.Decode(&indexMeta); err != nil {
 			return nil, err
 		}
 		indexMetaList = append(indexMetaList, indexMeta)
-	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, err
 	}
 	return indexMetaList, nil
 }
