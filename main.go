@@ -12,12 +12,15 @@ import (
 	"godb/internal/index"
 )
 
+type function string
+
 const (
 	defaultFilename     = "./store"
 	defaultMetaFilename = "./store.meta"
 
-	read  function = "read"
-	write function = "write"
+	read   function = "read"
+	write  function = "write"
+	delete function = "delete"
 )
 
 func init() {
@@ -26,8 +29,6 @@ func init() {
 		panic(err)
 	}
 }
-
-type function string
 
 func main() {
 	go func() {
@@ -55,8 +56,8 @@ func startConsole() error {
 
 	var coreErr error
 
-	engine := engine.NewStore(defaultFilename)
 	sst := index.NewSST(defaultMetaFilename)
+	engine := engine.NewStore(defaultFilename, sst)
 
 	for {
 		if !scanner.Scan() {
@@ -64,7 +65,7 @@ func startConsole() error {
 		}
 		input := strings.Split(scanner.Text(), " ")
 		if len(input) < 3 {
-			if input[0] == string(read) {
+			if input[0] == string(read) || input[0] == string(delete) {
 				funcName = input[0]
 				key = input[1]
 			} else {
@@ -84,16 +85,18 @@ func startConsole() error {
 				coreErr = err
 			}
 			fmt.Printf("wrote %d byte data\n", n)
-			err = sst.WriteKeyIndex(key)
-			if err != nil {
-				coreErr = err
-			}
 		case string(read):
-			val, cnt, err := engine.ReadKey(key)
+			val, err := engine.ReadKey(key)
 			if err != nil {
 				coreErr = err
 			}
-			fmt.Printf("read %d data, last found: %s \n", cnt, val)
+			fmt.Printf("last found: %s \n", val)
+		case string(delete):
+			err := engine.DeleteKey(key)
+			if err != nil {
+				coreErr = err
+			}
+			fmt.Println("deleted key")
 		default:
 			coreErr = fmt.Errorf("wrong function name, currently support read or write")
 		}

@@ -20,7 +20,7 @@ func NewSST(storePath string) *sst {
 	}
 }
 
-func (s *sst) WriteKeyIndex(key string) error {
+func (s *sst) BuildIndex(key string) error {
 	lastOffset, err := s.getLastOffset()
 	if err != nil {
 		return err
@@ -48,7 +48,7 @@ func (s *sst) WriteKeyIndex(key string) error {
 	return nil
 }
 
-func (s *sst) ReadKeyIndex(key string) (int, error) {
+func (s *sst) ReadIndex(key string) (int, error) {
 	allIndexes, err := s.readIndexMeta()
 	if err != nil {
 		return -1, err
